@@ -7,6 +7,11 @@ from google.genai import types, errors
 load_dotenv()
 
 api_key = os.getenv("GEMINI_API_KEY")
+if not api_key:
+    try:
+        api_key = st.secrets["GEMINI_API_KEY"]
+    except Exception:
+        api_key = None
 
 SYSTEM_PROMPT = """You are an expert SQL assistant. The user describes what data they want in plain English, and you write a clean, correct SQL query that answers it.
 
