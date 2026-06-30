@@ -16,26 +16,26 @@ st.set_page_config(
 # ── Custom CSS ───────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-    --bg: #0C0E14;
-    --surface: #13151C;
-    --border: #1E2230;
-    --amber: #F59E0B;
-    --violet: #7C3AED;
-    --success: #10B981;
-    --text-primary: #E8EDFF;
-    --text-muted: #6B7A9A;
-    --text-dim: #2A3250;
-    --glow-amber: 0 0 24px rgba(245,158,11,0.25);
+    --bg:           #FFFFFF;
+    --surface:      #F7F8FC;
+    --border:       #E2E6EF;
+    --amber:        #D97706;
+    --violet:       #7C3AED;
+    --success:      #059669;
+    --text-primary: #111827;
+    --text-muted:   #6B7280;
+    --text-dim:     #9CA3AF;
+    --glow-amber:   0 0 24px rgba(217,119,6,0.18);
 }
 
 .stApp { background-color: var(--bg) !important; font-family: 'Inter', sans-serif; }
 .stApp > header { background: transparent !important; }
 #MainMenu, footer, header { visibility: hidden; }
 .block-container { padding-top: 1.5rem !important; max-width: 1200px; }
-h1,h2,h3 { font-family: 'Space Grotesk', sans-serif !important; color: var(--text-primary) !important; }
+h1, h2, h3 { font-family: 'Inter', sans-serif !important; font-weight: 700 !important; color: var(--text-primary) !important; }
 p, li { color: var(--text-primary) !important; }
 hr { border-color: var(--border) !important; }
 strong { color: var(--text-primary) !important; }
@@ -47,7 +47,7 @@ strong { color: var(--text-primary) !important; }
 [data-testid="stSidebar"] * { color: var(--text-primary) !important; }
 
 .stTextArea textarea, .stTextInput > div > div > input {
-    background-color: var(--surface) !important;
+    background-color: var(--bg) !important;
     border: 1px solid var(--border) !important;
     border-radius: 8px !important;
     color: var(--text-primary) !important;
@@ -63,7 +63,7 @@ strong { color: var(--text-primary) !important; }
     color: #fff !important;
     border: none !important;
     border-radius: 8px !important;
-    font-family: 'Space Grotesk', sans-serif !important;
+    font-family: 'Inter', sans-serif !important;
     font-weight: 600 !important;
     transition: all 0.2s ease !important;
 }
@@ -75,7 +75,7 @@ strong { color: var(--text-primary) !important; }
 
 /* ── HEADER ── */
 .rc-header {
-    background: linear-gradient(135deg, var(--surface) 0%, #0F1220 100%);
+    background: linear-gradient(135deg, var(--surface) 0%, #EDEEF8 100%);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 1.4rem 1.8rem;
@@ -92,24 +92,27 @@ strong { color: var(--text-primary) !important; }
 }
 @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
 .rc-title {
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-size: 1.7rem; font-weight: 700;
-    background: linear-gradient(90deg, var(--amber), #A78BFA);
+    background: linear-gradient(90deg, var(--amber), var(--violet));
     -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     margin: 0 0 0.25rem 0; display: inline-block;
 }
 .rc-badge {
     display: inline-block;
-    background: rgba(245,158,11,0.08);
-    border: 1px solid rgba(245,158,11,0.25);
+    background: rgba(217,119,6,0.07);
+    border: 1px solid rgba(217,119,6,0.28);
     color: var(--amber); -webkit-text-fill-color: var(--amber);
     font-size: 0.65rem; font-family: 'JetBrains Mono', monospace;
     padding: 2px 7px; border-radius: 4px; margin-left: 0.6rem;
     vertical-align: middle; letter-spacing: 0.8px;
 }
-.rc-subtitle { color: var(--text-muted); -webkit-text-fill-color: var(--text-muted); font-size: 0.87rem; margin: 0; }
+.rc-subtitle {
+    color: var(--text-muted); -webkit-text-fill-color: var(--text-muted);
+    font-size: 0.87rem; margin: 0;
+}
 
-/* ── PIPELINE NODES (signature element) ── */
+/* ── PIPELINE NODES ── */
 .pipeline-wrap {
     display: flex; align-items: center;
     padding: 1rem 1.5rem;
@@ -126,25 +129,25 @@ strong { color: var(--text-primary) !important; }
     color: var(--text-dim); background: var(--bg);
     transition: all 0.3s ease;
 }
-.node-circle.done { border-color: var(--success); color: var(--success); background: rgba(16,185,129,0.1); }
+.node-circle.done  { border-color: var(--success); color: var(--success); background: rgba(5,150,105,0.07); }
 .node-circle.active {
     border-color: var(--amber); color: var(--amber);
-    background: rgba(245,158,11,0.1);
+    background: rgba(217,119,6,0.07);
     animation: pulse 1.5s ease-in-out infinite;
 }
 @keyframes pulse {
-    0%,100% { box-shadow: 0 0 8px rgba(245,158,11,0.3); }
-    50% { box-shadow: 0 0 20px rgba(245,158,11,0.7); }
+    0%,100% { box-shadow: 0 0 8px rgba(217,119,6,0.22); }
+    50%      { box-shadow: 0 0 20px rgba(217,119,6,0.55); }
 }
 .node-label {
     font-size: 0.62rem; font-family: 'JetBrains Mono', monospace;
     letter-spacing: 0.8px; text-transform: uppercase;
     color: var(--text-dim); -webkit-text-fill-color: var(--text-dim);
 }
-.node-label.done { color: var(--success); -webkit-text-fill-color: var(--success); }
-.node-label.active { color: var(--amber); -webkit-text-fill-color: var(--amber); }
-.pipeline-connector { height: 2px; flex: 0.25; background: var(--border); margin-bottom: 1.4rem; }
-.pipeline-connector.done { background: var(--success); }
+.node-label.done   { color: var(--success); -webkit-text-fill-color: var(--success); }
+.node-label.active { color: var(--amber);   -webkit-text-fill-color: var(--amber); }
+.pipeline-connector       { height: 2px; flex: 0.25; background: var(--border); margin-bottom: 1.4rem; }
+.pipeline-connector.done  { background: var(--success); }
 
 /* ── SECTION LABEL ── */
 .sg-label {
@@ -155,8 +158,8 @@ strong { color: var(--text-primary) !important; }
 
 /* ── REVIEW BANNER ── */
 .review-banner {
-    background: rgba(245,158,11,0.06);
-    border: 1px solid rgba(245,158,11,0.4);
+    background: rgba(217,119,6,0.05);
+    border: 1px solid rgba(217,119,6,0.32);
     border-radius: 8px;
     padding: 0.7rem 1rem;
     margin-bottom: 0.8rem;
@@ -168,7 +171,7 @@ strong { color: var(--text-primary) !important; }
 
 /* ── ANALYSIS DISPLAY ── */
 .analysis-box {
-    background: #060A12;
+    background: var(--surface);
     border: 1px solid var(--border);
     border-left: 3px solid var(--amber);
     border-radius: 8px;
@@ -200,9 +203,9 @@ strong { color: var(--text-primary) !important; }
     color: var(--text-muted); -webkit-text-fill-color: var(--text-muted);
     padding: 0.25rem 0; border-bottom: 1px solid var(--border);
 }
-.log-entry.done { color: var(--success); -webkit-text-fill-color: var(--success); }
-.log-entry.active { color: var(--amber); -webkit-text-fill-color: var(--amber); }
-.log-entry.human { color: #A78BFA; -webkit-text-fill-color: #A78BFA; }
+.log-entry.done  { color: var(--success); -webkit-text-fill-color: var(--success); }
+.log-entry.active{ color: var(--amber);   -webkit-text-fill-color: var(--amber); }
+.log-entry.human { color: var(--violet);  -webkit-text-fill-color: var(--violet); }
 
 /* ── EMPTY STATE ── */
 .empty-state {
@@ -210,9 +213,9 @@ strong { color: var(--text-primary) !important; }
     border: 1px dashed var(--border); border-radius: 12px;
     margin-top: 1rem;
 }
-.empty-icon { font-size: 2.5rem; opacity: 0.3; margin-bottom: 0.8rem; }
+.empty-icon  { font-size: 2.5rem; opacity: 0.35; margin-bottom: 0.8rem; }
 .empty-title {
-    font-family: 'Space Grotesk', sans-serif; font-size: 1rem;
+    font-family: 'Inter', sans-serif; font-size: 1rem; font-weight: 600;
     color: var(--text-muted); -webkit-text-fill-color: var(--text-muted);
 }
 .empty-sub { font-size: 0.8rem; color: var(--text-dim); -webkit-text-fill-color: var(--text-dim); margin-top: 0.3rem; }
@@ -288,13 +291,13 @@ def add_log(msg: str, entry_type: str = ""):
 with st.sidebar:
     st.markdown("""
 <div style="padding:0.5rem 0 1rem 0;">
-  <div style="font-family:'Space Grotesk',sans-serif;font-size:1.1rem;font-weight:700;
-      background:linear-gradient(90deg,#F59E0B,#A78BFA);
+  <div style="font-family:'Inter',sans-serif;font-size:1.1rem;font-weight:700;
+      background:linear-gradient(90deg,#D97706,#7C3AED);
       -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
     🔬 ResearchCrew
   </div>
   <div style="font-size:0.7rem;font-family:'JetBrains Mono',monospace;
-      color:#6B7A9A;letter-spacing:0.8px;margin-top:0.2rem;-webkit-text-fill-color:#6B7A9A;">
+      color:#6B7280;letter-spacing:0.8px;margin-top:0.2rem;-webkit-text-fill-color:#6B7280;">
     by GP CUBE · v1.0
   </div>
 </div>""", unsafe_allow_html=True)
@@ -334,8 +337,8 @@ st.markdown("""
   <div>
     <span class="rc-title">🔬 ResearchCrew</span>
     <span class="rc-badge">BETA</span>
-    <span class="rc-badge" style="border-color:rgba(124,58,237,0.3);
-        background:rgba(124,58,237,0.08);color:#A78BFA;-webkit-text-fill-color:#A78BFA;">
+    <span class="rc-badge" style="border-color:rgba(124,58,237,0.28);
+        background:rgba(124,58,237,0.07);color:#6D28D9;-webkit-text-fill-color:#6D28D9;">
       GROQ · LLAMA 3.3 70B
     </span>
   </div>
