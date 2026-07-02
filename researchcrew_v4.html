@@ -661,7 +661,16 @@
 
   // ── Config ─────────────────────────────────────────────────────────────
   // One place to change when we deploy — swap to the live server URL then.
-  const API = 'http://127.0.0.1:8000';
+  // ── Config ─────────────────────────────────────────────────────────────
+  // Empty string = relative path. Since api.py serves this HTML file AND
+  // the /research/* endpoints from the same origin, fetch('/research/start')
+  // automatically resolves to whatever domain the page is currently loaded
+  // from — http://127.0.0.1:8000 locally, https://researchcrew-xxxx.onrender.com
+  // once deployed, or any future host — without ever needing to change this
+  // line again. The old hardcoded 127.0.0.1 only worked on the machine
+  // actually running uvicorn; a phone or any other device has no idea what
+  // "127.0.0.1" means on ITS network, which is exactly what broke.
+  const API = '';
 
   // Stores the session_id returned by /research/start so the review
   // endpoint can pick up where the pipeline left off.
