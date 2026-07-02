@@ -156,12 +156,34 @@
     opacity: 0.16;
     transition: opacity 0.6s ease;
   }
+  /* On phones, the 1920x1080 viewBox gets squished non-uniformly onto a
+     narrow, tall screen (preserveAspectRatio="none"). That distortion
+     shrinks the already-thin strokes toward sub-pixel width, making them
+     nearly invisible even though the opacity values are unchanged.
+     non-scaling-stroke keeps the visual stroke width consistent
+     regardless of how distorted the underlying coordinate system is. */
+  .lines path {
+    vector-effect: non-scaling-stroke;
+  }
   /* Scout & Analyst show topic/status text over the strands — keep them
      especially light there so nothing fights the text for attention */
   body[data-stage="0"] .lines,
   body[data-stage="1"] .lines { opacity: 0.09; }
   body[data-stage="2"] .lines,
   body[data-stage="3"] .lines { opacity: 0.12; }
+
+  /* Mobile: the desktop opacity values were tuned for a larger screen
+     viewed from further away. On a phone, held closer and often in
+     brighter ambient light, the same values read as barely-there.
+     Boost opacity specifically on narrow screens without touching the
+     desktop experience at all. */
+  @media (max-width: 768px) {
+    .lines { opacity: 0.32 !important; }
+    body[data-stage="0"] .lines,
+    body[data-stage="1"] .lines { opacity: 0.22 !important; }
+    body[data-stage="2"] .lines,
+    body[data-stage="3"] .lines { opacity: 0.26 !important; }
+  }
 
   /* ── Center panels — all fixed, one visible at a time ─────────────── */
   .center-panel {
@@ -530,6 +552,33 @@
   body[data-stage="3"] .geo.rect    { top: 8%;  left: 10%; opacity: 0.09; }
   body[data-stage="3"] .geo.diamond { top: 72%; left: 72%; opacity: 0.07; }
   body[data-stage="3"] .geo.slim    { top: 78%; left: 16%; opacity: 0.07; }
+
+  /* Mobile: same two problems as the strands (too faint) plus a second
+     one specific to these shapes — they're positioned with percentages
+     but sized in fixed pixels (e.g. a 220px-wide rectangle at left:78%
+     on a ~390px phone screen extends well past the right edge, mostly
+     off-screen). Shrinking their footprint and boosting opacity fixes
+     both at once, without touching the desktop values at all. */
+  @media (max-width: 768px) {
+    .geo.rect    { width: 130px; height: 48px; }
+    .geo.diamond { width: 64px;  height: 64px; }
+    .geo.slim    { width: 36px;  height: 96px; }
+
+    body[data-stage="0"] .geo.rect,
+    body[data-stage="1"] .geo.rect,
+    body[data-stage="2"] .geo.rect,
+    body[data-stage="3"] .geo.rect { opacity: 0.26 !important; }
+
+    body[data-stage="0"] .geo.diamond,
+    body[data-stage="1"] .geo.diamond,
+    body[data-stage="2"] .geo.diamond,
+    body[data-stage="3"] .geo.diamond { opacity: 0.22 !important; }
+
+    body[data-stage="0"] .geo.slim,
+    body[data-stage="1"] .geo.slim,
+    body[data-stage="2"] .geo.slim,
+    body[data-stage="3"] .geo.slim { opacity: 0.20 !important; }
+  }
 </style>
 </head>
 <body data-stage="0">
