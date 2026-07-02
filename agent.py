@@ -289,6 +289,126 @@ def run_research(topic: str) -> dict:
 
     return state
 
+# These three functions reuse your existing scout_agent / analyst_agent /
+# writer_agent — nothing about those changes. What's new is HOW they're
+# chained together: no input(), no while True, no blocking.
+# ══════════════════════════════════════════════════════════════════════════
+
+def start_research(topic: str) -> dict:
+    """
+    API-safe version of the first half of run_research().
+    Runs Scout (with the thin-findings branch) + Analyst, then STOPS —
+    it returns the state for human review instead of calling input().
+
+    This is what the /research/start endpoint will call.
+    """
+    MAX_RETRIES = 3
+    MIN_FINDINGS_LENGTH = 200
+
+    state = {
+        "topic": topic,
+        "findings": None,
+        "analysis": None,
+        "report": None,
+        "steps_completed": [],
+        "retries": {},
+        "errors": []
+    }
+
+    # ── Step 1: Scout with retry logic (identical logic to run_research) ────
+    for attempt in range(MAX_RETRIES):
+        try:
+            state["findings"] = scout_agent(state["topic"])
+
+            if len(state["findings"]) < MIN_FINDINGS_LENGTH:
+                broader_topic = f"{state['topic']} overview recent developments"
+                additional_findings = scout_agent(broader_topic)
+                state["findings"] = (
+                    f"=== Primary Search ===\n{state['findings']}\n\n"
+                    f"=== Broader Search ===\n{additional_findings}"
+                )
+
+            state["steps_completed"].append("scout")
+            state["retries"]["scout"] = attempt
+            break
+
+        except Exception as e:
+            if attempt == MAX_RETRIES - 1:
+                state["errors"].append(f"Scout failed after {MAX_RETRIES} attempts: {e}")
+                return state
+
+    # ── Step 2: Analyst with retry logic ─────────────────────────────────────
+    for attempt in range(MAX_RETRIES):
+        try:
+            state["analysis"] = analyst_agent(state["topic"], state["findings"])
+            state["steps_completed"].append("analyst")
+            state["retries"]["analyst"] = attempt
+            break
+
+        except Exception as e:
+            if attempt == MAX_RETRIES - 1:
+                state["errors"].append(f"Analyst failed after {MAX_RETRIES} attempts: {e}")
+                return state
+
+    # NOTE: no human review here, no Writer call. We stop right after
+    # Analyst and hand the state back — the frontend will show this
+    # analysis to the human and decide what happens next.
+    return state
+
+
+def rerun_analyst_with_feedback(state: dict, feedback: str) -> dict:
+    """
+    API-safe version of the 'Reject' branch from run_research()'s
+    human-in-the-loop section. Re-runs Analyst with the human's feedback
+    folded into the prompt, same as before — just no input() around it.
+
+    This is what /research/review calls when decision == 'reject'.
+    """
+    MAX_RETRIES = 3
+
+    feedback_prompt = (
+        f"{state['findings']}\n\n"
+        f"Previous analysis was rejected. Human feedback: {feedback}\n"
+        f"Please re-analyze with this guidance in mind."
+    )
+
+    for attempt in range(MAX_RETRIES):
+        try:
+            state["analysis"] = analyst_agent(state["topic"], feedback_prompt)
+            state["retries"]["analyst"] = state["retries"].get("analyst", 0) + 1
+            break
+        except Exception as e:
+            if attempt == MAX_RETRIES - 1:
+                state["errors"].append(f"Analyst re-run failed: {e}")
+    return state
+
+
+def continue_after_approval(state: dict) -> dict:
+    """
+    API-safe version of the Writer step that used to run after the human
+    typed 'A' for Approve. Takes the (now-approved) findings + analysis
+    and produces the final report.
+
+    This is what /research/review calls when decision == 'approve'.
+    """
+    MAX_RETRIES = 3
+
+    for attempt in range(MAX_RETRIES):
+        try:
+            state["report"] = writer_agent(
+                state["topic"],
+                state["findings"],
+                state["analysis"]
+            )
+            state["steps_completed"].append("writer")
+            state["retries"]["writer"] = attempt
+            break
+
+        except Exception as e:
+            if attempt == MAX_RETRIES - 1:
+                state["errors"].append(f"Writer failed after {MAX_RETRIES} attempts: {e}")
+
+    return state
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":

@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ResearchCrew</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@400;500;600&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { height: 100%; background: #F2F1EE; color: #18181B; font-family: 'Inter', sans-serif; }
+
+  /* ── Top bar: wordmark left, stats right ──────────────────────────── */
+  .topbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 68px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 52px;
+    z-index: 30;
+    /* subtle separator so the bar doesn't just float on the background */
+    border-bottom: 1px solid rgba(24,24,27,0.07);
+    background: rgba(242,241,238,0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .wordmark {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.14em;
+    font-variant: small-caps;
+    color: #18181B;
+    white-space: nowrap;
+  }
+  .wordmark span { font-weight: 400; opacity: 0.4; margin-left: 10px; font-size: 13px; }
+
+  /* three stats inline on the right side of the top bar */
+  .topbar-stats {
+    display: flex;
+    align-items: center;
+    gap: 36px;
+  }
+  .topbar-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+  }
+  .topbar-stat-label {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    font-variant: small-caps;
+    color: #B5B0A9;
+    text-transform: uppercase;
+  }
+  .topbar-stat-value {
+    font-family: 'Fraunces', serif;
+    font-optical-sizing: auto;
+    font-size: 17px;
+    font-weight: 400;
+    color: #18181B;
+    line-height: 1;
+  }
+  .topbar-stat-value.text {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    color: #57534E;
+  }
+  /* divider between stats */
+  .topbar-stat + .topbar-stat {
+    padding-left: 36px;
+    border-left: 1px solid rgba(24,24,27,0.1);
+  }
+
+  /* ── Four corner stage labels ─────────────────────────────────────── */
+  .corner {
+    position: fixed;
+    z-index: 20;
+    transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .corner.scout  { top: 90px;  left: 52px; }
+  .corner.analyst { top: 90px;  right: 52px; text-align: right; }
+  .corner.review  { bottom: 52px; right: 52px; text-align: right; }
+  .corner.writer  { bottom: 52px; left: 52px; }
+
+  .corner-num {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    color: #C4BDB5;
+    display: block;
+    margin-bottom: 4px;
+    font-variant: small-caps;
+    transition: color 0.6s ease;
+  }
+  .corner-name {
+    font-family: 'Fraunces', serif;
+    font-optical-sizing: auto;
+    font-size: 18px;
+    font-weight: 300;
+    color: #C4BDB5;
+    line-height: 1;
+    display: block;
+    transition: font-size 0.6s cubic-bezier(0.16,1,0.3,1), color 0.6s ease;
+  }
+  .corner-desc {
+    font-family: 'Inter', sans-serif;
+    font-size: 11.5px;
+    line-height: 1.55;
+    color: #A8A29E;
+    max-width: 200px;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    margin-top: 0;
+    transition: max-height 0.5s ease, opacity 0.5s ease, margin-top 0.4s ease;
+  }
+  /* active corner state */
+  .corner.active .corner-num { color: #A8A29E; }
+  .corner.active .corner-name { font-size: clamp(60px, 6vw, 88px); font-weight: 400; color: #18181B; }
+  .corner.active .corner-desc { max-height: 80px; opacity: 1; margin-top: 14px; }
+  /* active indicator line */
+  .corner-line {
+    display: block;
+    height: 1px;
+    background: #18181B;
+    width: 0;
+    margin-top: 12px;
+    transition: width 0.6s cubic-bezier(0.16,1,0.3,1);
+  }
+  .corner.analyst .corner-line,
+  .corner.review .corner-line { margin-left: auto; }
+  .corner.active .corner-line { width: 44px; margin-top: 16px; }
+
+  /* ── Fixed single-screen app — no scrolling. Stage transitions are
+     driven entirely by pipeline state (API calls resolving), not by
+     scroll position. This removes the scroll-snap vs. programmatic-
+     scroll race conditions we were fighting entirely. ─────────────── */
+  body { overflow: hidden; }
+
+  /* ── Ambient line strands ─────────────────────────────────────────── */
+  .lines {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    stroke: #18181B;
+    fill: none;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.16;
+    transition: opacity 0.6s ease;
+  }
+  /* Scout & Analyst show topic/status text over the strands — keep them
+     especially light there so nothing fights the text for attention */
+  body[data-stage="0"] .lines,
+  body[data-stage="1"] .lines { opacity: 0.09; }
+  body[data-stage="2"] .lines,
+  body[data-stage="3"] .lines { opacity: 0.12; }
+
+  /* ── Center panels — all fixed, one visible at a time ─────────────── */
+  .center-panel {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -46%);
+    z-index: 10;
+    width: 100%;
+    max-width: 540px;
+    padding: 0 24px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.55s ease, transform 0.55s cubic-bezier(0.16,1,0.3,1);
+  }
+  .center-panel.active {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate(-50%, -50%);
+  }
+
+  /* Scout panel */
+  .scout-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    font-variant: small-caps;
+    color: #A8A29E;
+    text-align: center;
+    display: block;
+    margin-bottom: 28px;
+  }
+  .topic-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #C4BDB5;
+    text-align: center;
+    font-family: 'Fraunces', serif;
+    font-optical-sizing: auto;
+    font-size: 26px;
+    font-weight: 300;
+    color: #18181B;
+    padding: 8px 4px 16px;
+    outline: none;
+    transition: border-color 0.3s;
+  }
+  .topic-input::placeholder { color: #C4BDB5; font-style: italic; }
+  .topic-input:focus { border-bottom-color: #18181B; }
+  .deploy-btn {
+    display: block;
+    margin: 32px auto 0;
+    background: #18181B;
+    color: #F2F1EE;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    font-variant: small-caps;
+    padding: 13px 28px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .deploy-btn:hover { opacity: 0.8; }
+
+  /* Analyst panel */
+  .analyst-status {
+    text-align: center;
+  }
+  .analyst-topic {
+    font-family: 'Fraunces', serif;
+    font-optical-sizing: auto;
+    font-size: 22px;
+    font-weight: 300;
+    color: #18181B;
+    margin-bottom: 20px;
+    font-style: italic;
+  }
+  .analyst-sub {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    color: #A8A29E;
+    letter-spacing: 0.04em;
+  }
+  .pulse-dots { display: inline-flex; gap: 6px; margin-top: 16px; }
+  .pulse-dots span {
+    width: 5px; height: 5px; border-radius: 50%; background: #C4BDB5;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  .pulse-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .pulse-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.3; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1); }
+  }
+
+  /* Review panel */
+  .review-analysis {
+    font-family: 'Inter', sans-serif;
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: #57534E;
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  .review-actions { display: flex; gap: 12px; justify-content: center; }
+  .review-btn {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    font-variant: small-caps;
+    padding: 12px 24px;
+    border-radius: 3px;
+    cursor: pointer;
+    border: 1px solid #18181B;
+    background: transparent;
+    color: #18181B;
+    transition: background 0.25s, color 0.25s;
+  }
+  .review-btn.approve { background: #18181B; color: #F2F1EE; }
+  .review-btn.approve:hover { opacity: 0.85; }
+  .review-btn.reject:hover { background: #18181B; color: #F2F1EE; }
+  .feedback-wrap {
+    max-height: 0; overflow: hidden;
+    transition: max-height 0.4s ease;
+    margin-top: 0;
+  }
+  .feedback-wrap.open { max-height: 140px; margin-top: 20px; }
+  .feedback-wrap textarea {
+    width: 100%;
+    min-height: 68px;
+    background: transparent;
+    border: 1px solid #D6D3CE;
+    border-radius: 4px;
+    padding: 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    color: #18181B;
+    resize: none; outline: none;
+    margin-bottom: 10px;
+  }
+  .feedback-wrap textarea:focus { border-color: #18181B; }
+  .resubmit-btn {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    font-variant: small-caps;
+    padding: 10px 20px;
+    border: 1px solid #18181B;
+    background: #18181B;
+    color: #F2F1EE;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+
+  /* Analysis card in Review panel — scrollable, shows real Analyst output */
+  .analysis-card {
+    background: #EDECE9;
+    border: 1px solid #D6D3CE;
+    border-radius: 8px;
+    padding: 20px 24px;
+    max-height: 30vh;
+    overflow-y: auto;
+    text-align: left;
+    margin-bottom: 20px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    line-height: 1.65;
+    color: #3F3C38;
+  }
+  .analysis-card p { margin-bottom: 8px; }
+  .analysis-card strong { font-weight: 600; color: #18181B; }
+
+  /* Writer / report panel */
+  .report-card {
+    background: #EDECE9;
+    border: 1px solid #D6D3CE;
+    border-radius: 8px;
+    padding: 28px 32px;
+    max-height: 52vh;
+    overflow-y: auto;
+  }
+  .report-card h4 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    font-variant: small-caps;
+    color: #A8A29E;
+    margin: 18px 0 8px;
+  }
+  .report-card h4:first-child { margin-top: 0; }
+  .report-card p, .report-card li {
+    font-family: 'Inter', sans-serif;
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: #3F3C38;
+  }
+  .report-card ul { padding-left: 18px; }
+
+  /* ── Download buttons under the finished report ──────────────────── */
+  .report-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 18px;
+  }
+  .download-btn {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    font-variant: small-caps;
+    padding: 11px 22px;
+    border-radius: 3px;
+    border: 1px solid #18181B;
+    background: transparent;
+    color: #18181B;
+    cursor: pointer;
+    transition: background 0.25s, color 0.25s, opacity 0.25s;
+  }
+  .download-btn:hover:not(:disabled) { background: #18181B; color: #F2F1EE; }
+  .download-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  /* Filled variant for the primary "start over" action, so it visually
+     stands apart from the two secondary download options */
+  .download-btn.primary {
+    background: #18181B;
+    color: #F2F1EE;
+  }
+  .download-btn.primary:hover { opacity: 0.85; }
+
+  /* ── Print stylesheet — used by the Download PDF button, which calls
+     window.print(). Chrome's "Save as PDF" print destination turns this
+     into an actual PDF file. Everything except the report card itself
+     is hidden, and the card's scroll/height constraints are lifted so
+     the full report prints instead of being clipped.                 */
+  @media print {
+    body * { visibility: hidden; }
+    .report-card, .report-card * { visibility: visible; }
+
+    /* The real bug: visibility:hidden keeps an element's box in normal
+       document flow, just invisible. Since all four .center-panel
+       elements (Scout, Analyst, Review, Writer) got reset to
+       position:static below, the THREE inactive ones became invisible
+       but still-occupying-space blocks stacked above the Writer panel —
+       that stacked height was exactly the empty gap in the PDF.
+       Fix: fully remove inactive panels from flow with display:none,
+       and only unlock the currently-active one (Writer, at print time). */
+    .center-panel { display: none !important; }
+    .center-panel.active {
+      display: block !important;
+      position: static !important;
+      transform: none !important;
+      opacity: 1 !important;
+      max-width: none !important;
+      padding: 0 !important;
+    }
+    .report-card {
+      position: static !important;
+      width: 100% !important;
+      max-height: none !important;
+      overflow: visible !important;
+      background: white !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    .report-actions { display: none !important; }
+  }
+
+  /* ── Full-screen input overlay — shown before pipeline starts ──────── */
+  .input-overlay {
+    position: fixed;
+    inset: 0;
+    background: #F2F1EE;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    transition: opacity 0.7s ease, visibility 0.7s ease;
+  }
+  .input-overlay.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .overlay-eyebrow {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    font-variant: small-caps;
+    color: #A8A29E;
+    margin-bottom: 24px;
+  }
+  .overlay-headline {
+    font-family: 'Fraunces', serif;
+    font-optical-sizing: auto;
+    font-size: clamp(36px, 4.5vw, 64px);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+    max-width: 660px;
+    margin-bottom: 40px;
+    color: #18181B;
+  }
+  /* ── Elegant thin-stroke geometric shapes ─────────────────────────────
+     Three outline shapes (no fill) that lazily rotate on their own axis
+     at all times, and glide to new positions when the stage changes.
+     Kept at low opacity so they read as "ambient texture", not decoration
+     fighting the corner labels or center panels for attention.          */
+  .shapes-layer {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 3;
+  }
+  .geo {
+    position: absolute;
+    border: 1px solid #18181B;
+    opacity: 0;
+    transition: top 0.9s cubic-bezier(0.16,1,0.3,1),
+                left 0.9s cubic-bezier(0.16,1,0.3,1),
+                opacity 0.6s ease;
+  }
+  /* rect — a wide landscape rectangle */
+  .geo.rect  { width: 220px; height: 80px; }
+  /* diamond — a square rotated 45° */
+  .geo.diamond { width: 110px; height: 110px; transform: rotate(45deg); }
+  /* slim — a tall narrow rectangle */
+  .geo.slim  { width: 60px; height: 160px; }
+
+  /* continuous slow spin — each shape gets its own speed so they
+     never synchronize and always feel independently alive           */
+  .geo.rect    { animation: spinSlow 38s linear infinite; }
+  .geo.diamond { animation: spinSlow 52s linear infinite reverse; }
+  .geo.slim    { animation: spinSlow 28s linear infinite 4s; }
+  @keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  /* diamond needs to start at 45° so it keeps its diamond silhouette
+     through the rotation — we stack the base 45 on top in JS         */
+
+  /* stage 0 — Scout: shapes in right half, away from Scout corner (top-left) */
+  body[data-stage="0"] .geo.rect    { top: 20%; left: 62%; opacity: 0.14; }
+  body[data-stage="0"] .geo.diamond { top: 62%; left: 72%; opacity: 0.11; }
+  body[data-stage="0"] .geo.slim    { top: 38%; left: 78%; opacity: 0.10; }
+
+  /* stage 1 — Analyst: shapes shift left/lower, away from Analyst corner (top-right) */
+  body[data-stage="1"] .geo.rect    { top: 60%; left: 14%; opacity: 0.14; }
+  body[data-stage="1"] .geo.diamond { top: 22%; left: 20%; opacity: 0.11; }
+  body[data-stage="1"] .geo.slim    { top: 46%; left: 8%;  opacity: 0.10; }
+
+  /* stage 2 — Review: shapes retreat to extreme corners, center must be readable */
+  body[data-stage="2"] .geo.rect    { top: 6%;  left: 70%; opacity: 0.09; }
+  body[data-stage="2"] .geo.diamond { top: 75%; left: 8%;  opacity: 0.07; }
+  body[data-stage="2"] .geo.slim    { top: 8%;  left: 10%; opacity: 0.07; }
+
+  /* stage 3 — Writer: same retreat, report card needs full readability */
+  body[data-stage="3"] .geo.rect    { top: 8%;  left: 10%; opacity: 0.09; }
+  body[data-stage="3"] .geo.diamond { top: 72%; left: 72%; opacity: 0.07; }
+  body[data-stage="3"] .geo.slim    { top: 78%; left: 16%; opacity: 0.07; }
+</style>
+</head>
+<body data-stage="0">
+
+  <!-- Full-screen input overlay — dismissed once user hits Deploy Crew -->
+  <div class="input-overlay" id="inputOverlay">
+    <div class="overlay-eyebrow">ResearchCrew · by GP CUBE</div>
+    <div class="overlay-headline">What should we research?</div>
+    <textarea class="topic-input" id="topicInput" rows="1"
+      placeholder="e.g. AI agent frameworks in 2026"></textarea>
+    <button class="deploy-btn" id="deployBtn">Deploy Crew →</button>
+  </div>
+
+  <div class="topbar">
+    <div class="wordmark">ResearchCrew <span>by GP CUBE</span></div>
+    <div class="topbar-stats">
+      <div class="topbar-stat">
+        <span class="topbar-stat-label">Model</span>
+        <div class="topbar-stat-value text">Groq · Llama 3.3 70B</div>
+      </div>
+      <div class="topbar-stat">
+        <span class="topbar-stat-label">Sources Found</span>
+        <div class="topbar-stat-value" id="stat-sources">—</div>
+      </div>
+      <div class="topbar-stat">
+        <span class="topbar-stat-label">Steps Completed</span>
+        <div class="topbar-stat-value" id="stat-steps">0 / 4</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Four corner stage labels — always visible, active one grows -->
+  <div class="corner scout active" id="c0">
+    <span class="corner-num">01</span>
+    <span class="corner-name">Scout</span>
+    <span class="corner-desc">Live web search &amp; source curation across multiple angles.</span>
+    <span class="corner-line"></span>
+  </div>
+  <div class="corner analyst" id="c1">
+    <span class="corner-num">02</span>
+    <span class="corner-name">Analyst</span>
+    <span class="corner-desc">Insight extraction, pattern detection &amp; prioritisation.</span>
+    <span class="corner-line"></span>
+  </div>
+  <div class="corner review" id="c2">
+    <span class="corner-num">03</span>
+    <span class="corner-name">Review</span>
+    <span class="corner-desc">You approve or redirect the analysis with feedback.</span>
+    <span class="corner-line"></span>
+  </div>
+  <div class="corner writer" id="c3">
+    <span class="corner-num">04</span>
+    <span class="corner-name">Writer</span>
+    <span class="corner-desc">Structured briefing report, ready to use.</span>
+    <span class="corner-line"></span>
+  </div>
+
+  <!-- Ambient strands — vertical, continuously animated via requestAnimationFrame -->
+  <svg class="lines" viewBox="0 0 1920 1080" preserveAspectRatio="none">
+    <path id="strand-0" stroke-width="1"   opacity="0.5"  d="" />
+    <path id="strand-1" stroke-width="1.2" opacity="0.42" d="" />
+    <path id="strand-2" stroke-width="0.9" opacity="0.55" d="" />
+    <path id="strand-3" stroke-width="1.1" opacity="0.4"  d="" />
+    <path id="strand-4" stroke-width="1"   opacity="0.5"  d="" />
+  </svg>
+
+  <!-- Thin-stroke rotating geometric shapes — purely aesthetic,
+       glide to new positions on each stage change                -->
+  <div class="shapes-layer">
+    <div class="geo rect"></div>
+    <div class="geo diamond"></div>
+    <div class="geo slim"></div>
+  </div>
+
+  <!-- Center panels — each maps to the agent currently running -->
+
+  <!-- Stage 0: Scout is active → Scout corner enlarges, Scout is running -->
+  <div class="center-panel active" id="panel-0">
+    <div class="analyst-status">
+      <div class="analyst-topic" id="scoutTopic">"AI agent frameworks in 2026"</div>
+      <div class="analyst-sub" id="scoutSub">Scout is searching the web for sources</div>
+      <div class="pulse-dots"><span></span><span></span><span></span></div>
+    </div>
+  </div>
+
+  <!-- Stage 1: Analyst is active → Analyst corner enlarges, Analyst is running -->
+  <div class="center-panel" id="panel-1">
+    <div class="analyst-status">
+      <div class="analyst-topic" id="analystTopic">"AI agent frameworks in 2026"</div>
+      <div class="analyst-sub" id="analystSub">Analyst is extracting insights &amp; patterns</div>
+      <div class="pulse-dots"><span></span><span></span><span></span></div>
+    </div>
+  </div>
+
+  <!-- Stage 2: Review is active → human approves or rejects -->
+  <div class="center-panel" id="panel-2">
+    <!-- scrollable card shows the real analysis text -->
+    <div class="analysis-card" id="analysisCard">
+      <p>The Analyst identified three converging themes across 14 sources. The strongest signal
+      points to regulatory shifts in Q3. Approve to proceed to the Writer, or reject with feedback.</p>
+    </div>
+    <div class="review-actions" id="reviewActions">
+      <button class="review-btn reject" id="rejectBtn">Reject</button>
+      <button class="review-btn approve" id="approveBtn">Approve →</button>
+    </div>
+    <div class="feedback-wrap" id="feedbackWrap">
+      <textarea id="feedbackText" placeholder="What should the Analyst focus on differently?"></textarea>
+      <button class="resubmit-btn" id="resubmitBtn">Resubmit to Analyst</button>
+    </div>
+  </div>
+
+  <!-- Stage 3: Writer is active → final report -->
+  <div class="center-panel" id="panel-3">
+    <div class="report-card" id="reportCard">
+      <h4>Executive Summary</h4>
+      <p>Deploy the crew above to generate a real report.</p>
+    </div>
+    <div class="report-actions" id="reportActions">
+      <button class="download-btn" id="downloadPdfBtn" disabled>Download PDF</button>
+      <button class="download-btn" id="downloadDocBtn" disabled>Download Word</button>
+      <button class="download-btn primary" id="newResearchBtn">New Research</button>
+    </div>
+  </div>
+
+<script>
+  const NUM_STRANDS = 5;
+  const strandX = [860, 910, 960, 1010, 1060];
+  let current = 0;
+
+  // ── Config ─────────────────────────────────────────────────────────────
+  // One place to change when we deploy — swap to the live server URL then.
+  const API = 'http://127.0.0.1:8000';
+
+  // Stores the session_id returned by /research/start so the review
+  // endpoint can pick up where the pipeline left off.
+  let sessionId = null;
+  let currentTopic = ''; // stored so the Word/PDF export can label the report
+
+  // ── Strand path generator ────────────────────────────────────────────
+  // 't' is now a continuously increasing time value (via requestAnimationFrame
+  // below), not scroll position — so the strands sway constantly regardless
+  // of what stage the app is in or whether anything else is happening.
+  function strandPath(i, t) {
+    const x = strandX[i];
+    const sway1 = 110 * Math.sin(i * 1.7 + t);
+    const sway2 = 130 * Math.cos(i * 2.1 + t * 0.7);
+    return `M ${x} 30 C ${x + sway1} 280, ${x - sway1} 480, ${x + sway2} 700 S ${x - sway2} 900, ${x} 1050`;
+  }
+
+  const corners = [
+    document.getElementById('c0'),
+    document.getElementById('c1'),
+    document.getElementById('c2'),
+    document.getElementById('c3'),
+  ];
+  const panels = [
+    document.getElementById('panel-0'),
+    document.getElementById('panel-1'),
+    document.getElementById('panel-2'),
+    document.getElementById('panel-3'),
+  ];
+
+  // ── Stage transitions — now driven purely by pipeline state ────────────
+  // This is the ONLY thing that changes which corner/panel is active.
+  // There is no scroll, no IntersectionObserver, no race condition to
+  // fight anymore — render() is the single source of truth, called
+  // directly at the exact moment the pipeline actually reaches that stage
+  // (API call started, API call resolved, human clicked approve, etc).
+  function render(i) {
+    if (i === current) return;
+    current = i;
+    document.body.setAttribute('data-stage', current);
+    corners.forEach((c, idx) => c.classList.toggle('active', idx === current));
+    panels.forEach((p, idx)  => p.classList.toggle('active', idx === current));
+  }
+
+  // ── Continuous strand animation ─────────────────────────────────────────
+  // Runs forever via requestAnimationFrame, completely independent of
+  // stage/scroll/anything else — the strands should always be gently
+  // moving, per your request, regardless of what the pipeline is doing.
+  let strandTime = 0;
+  function animateStrands() {
+    strandTime += 0.006; // controls sway speed — small step per frame
+    for (let i = 0; i < NUM_STRANDS; i++) {
+      document.getElementById(`strand-${i}`).setAttribute('d', strandPath(i, strandTime));
+    }
+    requestAnimationFrame(animateStrands);
+  }
+  animateStrands();
+
+  // ── Stat helpers ────────────────────────────────────────────────────────
+  function setStats(sources, steps) {
+    document.getElementById('stat-sources').textContent = sources;
+    document.getElementById('stat-steps').textContent   = steps;
+  }
+
+  // ── Simple markdown → HTML renderer ────────────────────────────────────
+  // The Writer returns text using **Bold** headers and numbered/bullet lists.
+  // This converts just enough of that to clean HTML for the report card.
+  function mdToHtml(text) {
+    const lines = text.split('\n');
+    const out = [];
+    let inList = false;
+
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line) {
+        if (inList) { out.push('</ul>'); inList = false; }
+        continue;
+      }
+      // ## Header or **Header** or **Header:**
+      if (line.startsWith('## ')) {
+        if (inList) { out.push('</ul>'); inList = false; }
+        out.push(`<h4>${line.slice(3)}</h4>`);
+      } else if (/^\*\*(.+?)\*\*:?$/.test(line)) {
+        if (inList) { out.push('</ul>'); inList = false; }
+        out.push(`<h4>${line.replace(/\*\*/g, '')}</h4>`);
+      }
+      // Numbered list: "1. ..." or "- ..."
+      else if (/^(\d+\.|[-*])\s/.test(line)) {
+        if (!inList) { out.push('<ul>'); inList = true; }
+        const item = line.replace(/^(\d+\.|[-*])\s/, '')
+                         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        out.push(`<li>${item}</li>`);
+      }
+      // Regular paragraph
+      else {
+        if (inList) { out.push('</ul>'); inList = false; }
+        const html = line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        out.push(`<p>${html}</p>`);
+      }
+    }
+    if (inList) out.push('</ul>');
+    return out.join('');
+  }
+
+  // ── UI state helpers ────────────────────────────────────────────────────
+  function setLoading(btnId, isLoading, originalText) {
+    const btn = document.getElementById(btnId);
+    btn.disabled = isLoading;
+    btn.textContent = isLoading ? 'Working...' : originalText;
+    btn.style.opacity = isLoading ? '0.5' : '1';
+  }
+
+  function showError(containerId, msg) {
+    const el = document.getElementById(containerId);
+    el.innerHTML = `<p style="color:#B45309;font-size:13px;">⚠ ${msg}</p>`;
+  }
+
+  // ── DEPLOY CREW → POST /research/start ─────────────────────────────────
+  document.getElementById('deployBtn').addEventListener('click', async () => {
+    const topic = document.getElementById('topicInput').value.trim();
+    if (!topic) return;
+    currentTopic = topic;
+
+    // Populate topic label into both status panels
+    document.getElementById('scoutTopic').textContent   = `"${topic}"`;
+    document.getElementById('analystTopic').textContent = `"${topic}"`;
+
+    // Hide the input overlay and show the pipeline
+    document.getElementById('inputOverlay').classList.add('hidden');
+
+    // Switch to Scout stage — corner enlarges, Scout status panel shows
+    render(0);
+    setStats('—', '0 / 4');
+
+    // After 8s, switch to Analyst to show it's processing.
+    // This fires independently of the API call — we always want the user
+    // to see Scout → Analyst → Review in sequence, not Scout → Review.
+    const analystTimer = setTimeout(() => {
+      render(1);
+      setStats('—', '1 / 4');
+    }, 8000);
+
+    try {
+      const res = await fetch(`${API}/research/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic })
+      });
+
+      if (!res.ok) {
+        clearTimeout(analystTimer);
+        const err = await res.json();
+        showError('analysisCard', `Pipeline failed: ${JSON.stringify(err.detail)}`);
+        render(2);
+        return;
+      }
+
+      const data = await res.json();
+      sessionId = data.session_id;
+
+      const sourceCount = (data.findings.match(/Source \d+:/g) || []).length;
+
+      // Always show Analyst stage for at least 5 seconds before moving to
+      // Review — this guarantees Scout → Analyst → Review is visible even
+      // if the API returned faster than the 8s timer. We cancel the timer
+      // if it hasn't fired yet, force the Analyst stage ourselves, hold
+      // for 5s, then move on to Review.
+      clearTimeout(analystTimer);
+      render(1);
+      setStats(sourceCount || '5+', '1 / 4');
+
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
+      // Now populate Review with the real analysis and switch to it
+      document.getElementById('analysisCard').innerHTML = mdToHtml(data.analysis);
+      render(2);
+      setStats(sourceCount || '5+', '2 / 4');
+
+    } catch (err) {
+      clearTimeout(analystTimer);
+      showError('analysisCard', `Network error: ${err.message}. Is the API running?`);
+      render(2);
+    }
+  });
+
+  // ── APPROVE → POST /research/review { decision: "approve" } ────────────
+  document.getElementById('approveBtn').addEventListener('click', async () => {
+    if (!sessionId) {
+      alert('No active session — please deploy a research topic first.');
+      return;
+    }
+
+    setLoading('approveBtn', true, 'Approve →');
+    setLoading('rejectBtn', true, 'Reject');
+    document.getElementById('feedbackWrap').classList.remove('open');
+
+    try {
+      const res = await fetch(`${API}/research/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId, decision: 'approve' })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        showError('analysisCard', `Writer failed: ${JSON.stringify(err.detail)}`);
+        return;
+      }
+
+      const data = await res.json();
+
+      // Inject the real Writer report into the report card
+      document.getElementById('reportCard').innerHTML = mdToHtml(data.report);
+      setStats(document.getElementById('stat-sources').textContent, '4 / 4');
+
+      // Enable the download buttons now that a real report exists
+      document.getElementById('downloadPdfBtn').disabled = false;
+      document.getElementById('downloadDocBtn').disabled = false;
+
+      // Hide action buttons — the pipeline is complete
+      document.getElementById('reviewActions').style.display = 'none';
+
+      // Switch to Writer — stage 3, Writer corner enlarges, report visible
+      render(3);
+
+    } catch (err) {
+      showError('analysisCard', `Network error: ${err.message}`);
+    } finally {
+      setLoading('approveBtn', false, 'Approve →');
+      setLoading('rejectBtn', false, 'Reject');
+    }
+  });
+
+  // ── REJECT → POST /research/review { decision: "reject", feedback } ────
+  document.getElementById('rejectBtn').addEventListener('click', () => {
+    // First click: toggle the feedback box open.
+    // The actual API call fires from the Resubmit button.
+    document.getElementById('feedbackWrap').classList.toggle('open');
+  });
+
+  document.getElementById('resubmitBtn').addEventListener('click', async () => {
+    const feedback = document.getElementById('feedbackText').value.trim();
+    if (!feedback) {
+      alert('Please enter feedback for the Analyst before resubmitting.');
+      return;
+    }
+    if (!sessionId) {
+      alert('No active session.');
+      return;
+    }
+
+    // Close the feedback box immediately
+    document.getElementById('feedbackWrap').classList.remove('open');
+    document.getElementById('feedbackText').value = '';
+
+    // Navigate back to Analyst — it's re-running with the feedback,
+    // so the user should see the Analyst loading state again, not
+    // the stale analysis card updating in place on the Review screen
+    document.getElementById('analystSub').textContent = 'Analyst is re-running with your feedback...';
+    render(1);
+
+    try {
+      const res = await fetch(`${API}/research/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: sessionId,
+          decision: 'reject',
+          feedback
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        // On error, go back to Review and show the error there
+        showError('analysisCard', `Re-analysis failed: ${JSON.stringify(err.detail)}`);
+        render(2);
+        return;
+      }
+
+      const data = await res.json();
+
+      // Hold on Analyst for 5s (same as initial Analyst pause) so the
+      // user sees the re-run completing before moving back to Review
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
+      // Populate Review with the new analysis and navigate there
+      document.getElementById('analysisCard').innerHTML = mdToHtml(data.analysis);
+
+      // Reset the Analyst subtitle for any future re-runs
+      document.getElementById('analystSub').textContent = 'Analyst is extracting insights & patterns';
+
+      render(2);
+
+    } catch (err) {
+      showError('analysisCard', `Network error: ${err.message}`);
+      render(2);
+    }
+  });
+
+  // ── DOWNLOAD PDF ──────────────────────────────────────────────────────
+  // Uses the browser's native print dialog. The @media print stylesheet
+  // above hides everything except the report card. Choosing "Save as PDF"
+  // as the destination in that dialog produces a real PDF file — no
+  // external library needed for this.
+  document.getElementById('downloadPdfBtn').addEventListener('click', () => {
+    window.print();
+  });
+
+  // ── DOWNLOAD WORD ─────────────────────────────────────────────────────
+  // True .docx files are a zip-based XML format that would need an
+  // external library to build from scratch. The lightweight, dependency-
+  // free alternative — long used for exactly this purpose — is to hand
+  // Word an HTML file with a .doc extension and the right MIME type.
+  // Word opens it directly (via its HTML import filter) with headings,
+  // bullets, and bold text all preserved correctly.
+  document.getElementById('downloadDocBtn').addEventListener('click', () => {
+    const reportHtml = document.getElementById('reportCard').innerHTML;
+
+    const docHtml = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office'
+            xmlns:w='urn:schemas-microsoft-com:office:word'
+            xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset='utf-8'>
+        <title>ResearchCrew Report</title>
+      </head>
+      <body style="font-family:Calibri, Arial, sans-serif; font-size:12pt; line-height:1.5; color:#18181B;">
+        <h1 style="font-family:Georgia,serif; font-size:22pt; margin-bottom:4pt;">ResearchCrew Report</h1>
+        <p style="color:#666666; font-size:10pt; margin-bottom:20pt;">Topic: ${currentTopic}</p>
+        ${reportHtml}
+      </body>
+      </html>`;
+
+    // '\ufeff' is a UTF-8 byte-order-mark — without it, Word can
+    // misinterpret special characters (curly quotes, em dashes) as
+    // garbled symbols when it opens the file.
+    const blob = new Blob(['\ufeff', docHtml], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ResearchCrew-Report.doc';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url); // free the memory once the download starts
+  });
+
+  // ── NEW RESEARCH — full reset back to the input overlay ────────────────
+  // This has to genuinely reset everything, not just show the overlay
+  // again — otherwise leftover state from the finished run (old
+  // session_id, old report HTML, disabled download buttons, a
+  // collapsed Review action row) would bleed into the next run.
+  document.getElementById('newResearchBtn').addEventListener('click', () => {
+    // Clear pipeline state
+    sessionId = null;
+    currentTopic = '';
+
+    // Reset the topic input field
+    document.getElementById('topicInput').value = '';
+
+    // Reset Scout/Analyst status text back to placeholders
+    document.getElementById('scoutTopic').textContent = '"AI agent frameworks in 2026"';
+    document.getElementById('analystTopic').textContent = '"AI agent frameworks in 2026"';
+    document.getElementById('analystSub').textContent = 'Analyst is extracting insights & patterns';
+
+    // Reset the Review panel back to its placeholder analysis
+    document.getElementById('analysisCard').innerHTML =
+      '<p>The Analyst identified three converging themes across 14 sources. The strongest signal ' +
+      'points to regulatory shifts in Q3. Approve to proceed to the Writer, or reject with feedback.</p>';
+    document.getElementById('reviewActions').style.display = 'flex'; // undo the hide from a previous approve
+    document.getElementById('feedbackWrap').classList.remove('open');
+    document.getElementById('feedbackText').value = '';
+
+    // Reset the Writer panel back to its placeholder report
+    document.getElementById('reportCard').innerHTML =
+      '<h4>Executive Summary</h4><p>Deploy the crew above to generate a real report.</p>';
+    document.getElementById('downloadPdfBtn').disabled = true;
+    document.getElementById('downloadDocBtn').disabled = true;
+
+    // Reset stats
+    setStats('—', '0 / 4');
+
+    // Go back to Scout stage and show the input overlay again
+    render(0);
+    document.getElementById('inputOverlay').classList.remove('hidden');
+  });
+</script>
+
+</body>
+</html>
